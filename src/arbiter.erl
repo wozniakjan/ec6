@@ -9,7 +9,9 @@
 
 -include("common.hrl").
 
-%% Private functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Private functions                                                         %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 board_size() -> 20.
 stones() -> 2.
 win_count() -> 6.
@@ -84,12 +86,14 @@ check_direction(Position, Direction, Board, Player, Acc) ->
 
 check_board(#arbiter_state{board=B, active_player=AP, game=GameState}) ->
     Directions = [{X,Y} || X<-[-1,0,1], Y<-[-1,0,1], X/=0 orelse Y/=0],
-    Stones = dict:to_list(B),
+    Stones = lists:map(fun(S) -> {Pos, _} = S, Pos end, dict:to_list(B)),
     DirFun = fun({S, D}) -> check_direction(S, D, B, AP, 1) end,
     Results = lists:map(DirFun, [{S,D} || S <- Stones, D <- Directions]),
     Max = lists:max(Results),
     WinCount = win_count(),
-    if Max>=WinCount -> GameState#game_state{state=win};
+    if Max>=WinCount -> 
+            io:format("Player ~p WON~n", [AP]),
+            GameState#game_state{state=win};
        Max< WinCount -> GameState#game_state{state=playing}
     end.
 
@@ -98,18 +102,19 @@ send_results(#game_state{state=Result, winners=Winners, losers=Losers},
     lists:map(fun(X) -> X ! Result end, Winners),
     lists:map(fun(X) -> X ! lose end, Losers),
     Supervisor ! Winners.
-    
 play_stones(Stones, State = #arbiter_state{active_player=AP, players=Players,
                              game=Game, board=Board}) ->  
     lists:map(fun(S) -> check(AP, S#stone.player, wrong_player) end, Stones),
     check_move(Stones, Game),
     NB = lists:foldl(fun(S, B) -> play_stone(S, B) end, Board, Stones), 
-    GS = check_board(NB),
+    GS = check_board(State#arbiter_state{board=NB}),
     NP = next_player(AP, Players),
     T = now_mili(), 
     State#arbiter_state{active_player=NP, board=NB, game=GS, time_check=T}.
 
-%% Generic Server
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Generic Server                                                            %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 init(State = #arbiter_state{players=Players}) ->
     FirstPlayer = first_player(Players),
     FirstPlayer ! start,
@@ -161,7 +166,9 @@ terminate(_Term, State = #arbiter_state{game=Result}) ->
     ok.
     
 
-%% Client API
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Client API                                                                %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 start_link(Players, Sup) ->
     gen_server:start_link(?MODULE, 
         #arbiter_state{players=Players, supervisor=Sup}, []).

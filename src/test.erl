@@ -19,14 +19,14 @@ test() ->
     {ok, Arbiter} = arbiter:start_link([Player1, Player2], self()),
     register(arbiter, Arbiter),
     send_stone(Player1, {1, 1}),
-    send_stones(Player2, {1,2}, {2,2}),
-    send_stones(Player1, {1,3}, {4,2}),
-    arbiter:get_board(arbiter, self()),
-    receive
-        Board -> 
-            ok = arbiter:is_free({1, 5}, Board, Player1),
-            true = arbiter:is_occupied_by({1, 1}, Board, Player1), 
-            false = arbiter:is_occupied_by({1, 1}, Board, Player2),
-            true = arbiter:is_occupied_by({1, 2}, Board, Player2),  
-            false = arbiter:is_occupied_by({5, 5}, Board, Player2)
-    end.
+    send_stones(Player2, {10,10}, {11,11}),
+
+    send_stones(Player1, {1,2}, {1,3}),
+    send_stones(Player2, {12,12}, {13,13}),
+    
+    send_stones(Player1, {1,4}, {1,5}),
+    send_stones(Player2, {14,14}, {15,15}),
+    
+    %send_stones(Player1, {1,6}, {1,7}),
+    %send_stones(Player2, {16,16}, {4,2}), 
+    ok.
