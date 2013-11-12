@@ -6,7 +6,6 @@
     code_change/3]).
 -compile(export_all).
 
-
 -include("common.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,13 +102,14 @@ send_results(Players, Observers, Winners) ->
 
 inform_players(State=#arbiter_state{active_player=AP, players=P}, Stones) ->
     GameState = State#arbiter_state.game,
+    Observers = State#arbiter_state.observers,
     case GameState#game_state.state of
         playing ->
-            Others = ordsets:del_element(AP, P),
+            Others = ordsets:del_element(AP, P) ++ Observers,
             lists:map(fun(X)-> X!Stones end, Others);
         finished ->
             Winners = GameState#game_state.winners,
-            send_results(P, State#arbiter_state.observers, Winners)
+            send_results(P, Observers, Winners)
     end.
 
 play_stones(Stones, State=#arbiter_state{active_player=AP, players=Players,
@@ -180,8 +180,8 @@ handle_info(timeout,
     {stop, normal, FinalState}.
 
 
-terminate(_Term, _State=#arbiter_state{game=Game}) -> 
-    io:format("Winners: ~p, terminating ~n", [Game#game_state.winners]).    
+terminate(_Term, _State=#arbiter_state{game=Game}) -> ok.
+    %io:format("Winners: ~p, terminating ~n", [Game#game_state.winners]).    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Client API                                                                %%

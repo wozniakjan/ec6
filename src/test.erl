@@ -36,3 +36,12 @@ test() ->
     {ok, Arbiter} = arbiter:start([Player1, Player2], [self()]),
     register(arbiter, Arbiter),
     {test, ok}.
+
+cli()->
+    Cli = cli_observer:start(dict:new(), []),
+    Cli ! [{stone, self(), 1, 1, make_ref()}],
+    Cli ! [{stone, self(), 3, 1, make_ref()}],
+    Cli ! [{stone, self(), 2, 2, make_ref()}],
+    Cli ! [{stone, self(), 1, 4, make_ref()}],
+    Cli ! [{stone, self(), 19, 19, make_ref()}],
+    timer:sleep(1000).
