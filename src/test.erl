@@ -7,7 +7,7 @@ player(Id, Acc) ->
         Msg -> 
             %timer:sleep(10),
             case Msg of
-                won -> io:format("I won, I am player ~p~n", [Id]);
+                won -> ok; %io:format("I won, I am player ~p~n", [Id]);
                 _ -> ok 
             end,                
             case {Id, Acc} of
@@ -33,15 +33,7 @@ send_stones(Player, {X1, Y1}, {X2, Y2}) ->
 test() ->
     Player1 = spawn(?MODULE, player, [1, 0]),
     Player2 = spawn(?MODULE, player, [2, 0]),
-    {ok, Arbiter} = arbiter:start([Player1, Player2], [self()]),
+    {ok, Cli} = cli:start([Player1, Player2]),
+    {ok, Arbiter} = arbiter:start([Player1, Player2], [Cli]),
     register(arbiter, Arbiter),
     {test, ok}.
-
-cli()->
-    Cli = cli_observer:start(dict:new(), []),
-    Cli ! [{stone, self(), 1, 1, make_ref()}],
-    Cli ! [{stone, self(), 3, 1, make_ref()}],
-    Cli ! [{stone, self(), 2, 2, make_ref()}],
-    Cli ! [{stone, self(), 1, 4, make_ref()}],
-    Cli ! [{stone, self(), 19, 19, make_ref()}],
-    timer:sleep(1000).

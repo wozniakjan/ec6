@@ -3,7 +3,7 @@
 
 -export([start/2, put_stones/2, end_game/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, 
-    code_change/3]).
+         code_change/3]).
 -compile(export_all).
 
 -include("common.hrl").
@@ -17,7 +17,7 @@ win_count() -> 6.
 timeout(#arbiter_state{time_check=T}) -> 
     Timeout = round(T-now_mili()+timeout()),
     if Timeout<0 -> 0;
-       true -> Timeout
+        true -> Timeout
     end.
 timeout() -> 3000.
 
@@ -27,27 +27,28 @@ now_mili() ->
 
 check(Correct, Tested, Throw) ->
     if Correct /= Tested -> throw({Throw, Tested});
-       true -> ok
+        true -> ok
     end.
 
 is_free(Position, Board, Player) ->
     Ret = dict:find(Position, Board),
     if Ret/=error -> throw({position_full, Player});
-       true -> ok
+        true -> ok
     end.
 
 is_occupied_by(Position, Board, Player) ->
     Val = dict:find(Position, Board),
-    if Val/=error -> {ok, {P, _Id}} = Val,
-           if P==Player -> true;
-              true -> false end;
-       true -> false end.
+    if Val/=error -> 
+            {ok, {P, _Id}} = Val,
+            if P==Player -> true;
+                true -> false end;
+        true -> false end.
 
 on_board({X, Y}, Player) ->
     Max = board_size(),
     if X=<Max andalso X>=1 andalso
        Y=<Max andalso Y>=1 -> true;
-       true->throw({stone_out_of_board, Player})
+        true->throw({stone_out_of_board, Player})
     end.
 
 play_stone(#stone{player=P, x=X, y=Y, id=ID}, Board) ->
@@ -57,14 +58,15 @@ play_stone(#stone{player=P, x=X, y=Y, id=ID}, Board) ->
 next_position({X,Y}, {Dx,Dy}) -> {X+Dx, Y+Dy}.
 
 first_player(PlayerList) ->
-    {A1,A2,A3} = now(),
-    random:seed(A1, A2, A3),
-    lists:nth(random:uniform(length(PlayerList)), PlayerList).
+    lists:nth(1, PlayerList).
+    %{A1,A2,A3} = now(),
+    %random:seed(A1, A2, A3),
+    %lists:nth(random:uniform(length(PlayerList)), PlayerList).
 
 next_player(CurrentPlayer, PlayerList) ->
     [_ | Tail] = lists:dropwhile(fun(X) -> X /= CurrentPlayer end, PlayerList), 
     if Tail==[] -> [Next | _ ] = PlayerList;
-       true -> [Next | _ ] = Tail
+        true -> [Next | _ ] = Tail
     end,
     Next.
 
@@ -78,8 +80,8 @@ check_move(Stones, #game_state{state=State}) ->
 check_direction(Position, Direction, Board, Player, Acc) ->
     NextPos = next_position(Position, Direction),
     case is_occupied_by(NextPos, Board, Player) of
-         true -> check_direction(NextPos, Direction, Board, Player, Acc+1);
-         false -> Acc
+        true -> check_direction(NextPos, Direction, Board, Player, Acc+1);
+        false -> Acc
     end.
 
 check_board(#arbiter_state{board=B, active_player=AP, game=GameState}) ->
@@ -90,9 +92,9 @@ check_board(#arbiter_state{board=B, active_player=AP, game=GameState}) ->
     Max = lists:max(Results),
     WinCount = win_count(),
     if Max>=WinCount -> 
-           GameState#game_state{state=finished, winners=[AP]};
-       Max< WinCount -> 
-           GameState#game_state{state=playing}
+            GameState#game_state{state=finished, winners=[AP]};
+        Max< WinCount -> 
+            GameState#game_state{state=playing}
     end.
 
 send_results(Players, Observers, Winners) ->
@@ -101,24 +103,26 @@ send_results(Players, Observers, Winners) ->
     lists:map(fun(S)-> S!{finished, {winners, Winners}} end, Observers).
 
 inform_players(State=#arbiter_state{active_player=AP, players=P}, Stones) ->
+    Board = State#arbiter_state.board,
     GameState = State#arbiter_state.game,
     Observers = State#arbiter_state.observers,
     case GameState#game_state.state of
         playing ->
-            Others = ordsets:del_element(AP, P) ++ Observers,
+            Others = ordsets:del_element(AP, P),
             lists:map(fun(X)-> X!Stones end, Others);
         finished ->
             Winners = GameState#game_state.winners,
             send_results(P, Observers, Winners)
-    end.
+    end,
+    lists:map(fun(X)-> X!{draw_board, Board} end, Observers).
 
 play_stones(Stones, State=#arbiter_state{active_player=AP, players=Players,
-                          game=Game, board=Board}) ->  
+                                         game=Game, board=Board}) ->  
     lists:map(fun(S) -> check(AP, S#stone.player, wrong_player) end, Stones),
     check_move(Stones, Game),
     NB = lists:foldl(fun(S, B) -> play_stone(S, B) end, Board, Stones), 
     GS = check_board(State#arbiter_state{board=NB}),
-    inform_players(State#arbiter_state{game=GS}, Stones),
+    inform_players(State#arbiter_state{game=GS, board=NB}, Stones),
     NP = next_player(AP, Players),
     T = now_mili(), 
     State#arbiter_state{active_player=NP, board=NB, game=GS, time_check=T}.
@@ -172,7 +176,7 @@ handle_cast({info, Msg}, State=#arbiter_state{board=Board}) ->
     {noreply, State, timeout(State)}.
 
 handle_info(timeout, 
-        State=#arbiter_state{active_player=AP,game=GameState,players=P}) ->  
+            State=#arbiter_state{active_player=AP,game=GameState,players=P}) ->  
     W = lists:delete(AP,P),
     Result = GameState#game_state{losers=[AP], winners=W, state=finished},
     FinalState = State#arbiter_state{game=Result},
@@ -181,14 +185,14 @@ handle_info(timeout,
 
 
 terminate(_Term, _State=#arbiter_state{game=Game}) -> ok.
-    %io:format("Winners: ~p, terminating ~n", [Game#game_state.winners]).    
+%io:format("Winners: ~p, terminating ~n", [Game#game_state.winners]).    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Client API                                                                %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 start(Players, Sup) ->
     gen_server:start(?MODULE, 
-        #arbiter_state{players=Players, observers=Sup}, []).
+                     #arbiter_state{players=Players, observers=Sup}, []).
 
 end_game(ArbiterPid) ->
     gen_server:call(ArbiterPid, terminate).
